@@ -1,12 +1,13 @@
 "use client"
 
 import { ProductForm } from "@/components/product-form"
-import { redirect, notFound } from "next/navigation"
+import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import connectDB from "@/lib/mongodb"
 import Product from "@/models/Product"
+import { updateProduct } from "@/app/actions/product-actions"
 
 export default async function EditProductPage({ params }: { params: { id: string } }) {
   await connectDB()
@@ -31,21 +32,7 @@ export default async function EditProductPage({ params }: { params: { id: string
     featured: product.featured,
   }
 
-  async function handleSubmit(data: any) {
-    "use server"
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/products/${params.id}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      },
-    )
-
-    if (response.ok) {
-      redirect("/products")
-    }
-  }
+  const handleSubmit = updateProduct.bind(null, params.id)
 
   return (
     <div className="min-h-screen bg-background">
