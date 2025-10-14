@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { X, Plus, Upload } from "lucide-react"
+import { X, Plus } from "lucide-react"
 import { TRIBES, CATEGORIES, CURRENCIES, type ProductFormData } from "@/lib/types"
 import { Checkbox } from "@/components/ui/checkbox"
+import { CloudinaryUploadWidget } from "@/components/cloudinary-upload-widget"
 
 interface ProductFormProps {
   onSubmit: (data: ProductFormData) => Promise<void>
@@ -68,6 +69,12 @@ export function ProductForm({ onSubmit, initialData, isEditing = false }: Produc
   const addImageUrl = () => {
     if (imageUrls.length < 5) {
       setImageUrls([...imageUrls, ""])
+    }
+  }
+
+  const handleCloudinaryUpload = (url: string) => {
+    if (imageUrls.length < 5) {
+      setImageUrls([...imageUrls, url])
     }
   }
 
@@ -300,27 +307,41 @@ export function ProductForm({ onSubmit, initialData, isEditing = false }: Produc
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-serif">Product Images</CardTitle>
-          <CardDescription>Add up to 5 images (URLs or upload)</CardDescription>
+          <CardDescription>Add up to 5 images using Cloudinary upload or image URLs</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {imageUrls.map((url, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                value={url}
-                onChange={(e) => updateImageUrl(index, e.target.value)}
-                placeholder="https://example.com/image.jpg or /placeholder.svg?height=400&width=400"
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="icon" onClick={() => removeImageUrl(index)}>
-                <X className="h-4 w-4" />
-              </Button>
+            <div key={index} className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  value={url}
+                  onChange={(e) => updateImageUrl(index, e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" size="icon" onClick={() => removeImageUrl(index)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              {url && (
+                <div className="relative w-full h-32 rounded-md overflow-hidden border">
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt={`Product ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
             </div>
           ))}
           {imageUrls.length < 5 && (
-            <Button type="button" variant="outline" onClick={addImageUrl} className="w-full bg-transparent">
-              <Upload className="mr-2 h-4 w-4" />
-              Add Image URL
-            </Button>
+            <div className="space-y-2">
+              <CloudinaryUploadWidget onUpload={handleCloudinaryUpload} buttonText="Upload Image from Device" />
+              <Button type="button" variant="outline" onClick={addImageUrl} className="w-full bg-transparent">
+                <Plus className="mr-2 h-4 w-4" />
+                Or Add Image URL Manually
+              </Button>
+            </div>
           )}
           {imageUrls.length === 0 && <p className="text-sm text-destructive">At least one image is required</p>}
         </CardContent>

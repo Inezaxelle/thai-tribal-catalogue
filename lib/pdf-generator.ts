@@ -15,35 +15,150 @@ interface PDFHelpers {
   margin: number
 }
 
-// Reusable component: Page header with title and page number
+type PageLayoutType = "two-column" | "three-column" | "featured" | "mixed"
+
+interface ProductLayout {
+  product: IProduct
+  contentWeight: number
+  cardHeight: number
+  imageAspectRatio: number
+  layoutType: "vertical" | "horizontal-left" | "horizontal-right"
+}
+
 function addPageHeader(helpers: PDFHelpers, title: string, pageNumber: number) {
   const { doc, colors, pageWidth, margin } = helpers
 
-  // Left: Brand name
-  doc.setFontSize(8)
+  doc.setFontSize(7)
   doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
   doc.setFont("times", "normal")
   doc.text("Thai Tribal Crafts | 2025", margin, 10)
 
-  // Center: Section title
-  doc.setFontSize(10)
-  doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
+  doc.setFontSize(11)
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
   doc.setFont("times", "bold")
   doc.text(title, pageWidth / 2, 10, { align: "center" })
 
-  // Right: Page number
-  doc.setFontSize(8)
-  doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
-  doc.setFont("times", "normal")
+  doc.setFontSize(7)
   doc.text(pageNumber.toString(), pageWidth - margin, 10, { align: "right" })
 
-  // Subtle line below header
-  doc.setDrawColor(colors.muted[0], colors.muted[1], colors.muted[2])
-  doc.setLineWidth(0.1)
-  doc.line(margin, 12, pageWidth - margin, 12)
+  doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2])
+  doc.setLineWidth(0.3)
+  doc.line(margin, 13, pageWidth - margin, 13)
 }
 
-// Reusable component: Product card with alternating layout
+function determinePageLayout(
+  products: IProduct[],
+  startIndex: number,
+): {
+  layoutType: PageLayoutType
+  productsOnPage: number
+} {
+  const remaining = products.length - startIndex
+
+  if (remaining === 1) {
+    return { layoutType: "featured", productsOnPage: 1 }
+  }
+
+  // Analyze content weight of next few products
+  const nextProducts = products.slice(startIndex, startIndex + 6)
+  const avgContentWeight = nextProducts.reduce((sum, p) => sum + calculateContentWeight(p), 0) / nextProducts.length
+
+  // Heavy content (long stories) → fewer products per page
+  if (avgContentWeight > 600) {
+    return { layoutType: "two-column", productsOnPage: Math.min(4, remaining) }
+  }
+
+  // Medium content → 4-6 products
+  if (avgContentWeight > 400) {
+    return {
+      layoutType: remaining >= 6 ? "three-column" : "two-column",
+      productsOnPage: Math.min(remaining >= 6 ? 6 : 4, remaining),
+    }
+  }
+
+  // Light content → can fit more
+  return { layoutType: "three-column", productsOnPage: Math.min(6, remaining) }
+}
+
+function calculateContentWeight(product: IProduct): number {
+  const nameWeight = product.name.length * 1.5
+  const tribeWeight = product.tribe.length * 1.2
+  const materialsWeight = product.materials.join(", ").length * 1.0
+  const storyWeight = product.story.length * 1.0
+
+  return nameWeight + tribeWeight + materialsWeight + storyWeight
+}
+
+async function getImageAspectRatio(imageUrl: string): Promise<number> {
+  try {
+    // For Cloudinary images, we can estimate or use a default
+    // In a real implementation, you might want to fetch image metadata
+    return 1.0 // Default square aspect ratio
+  } catch {
+    return 1.0
+  }
+}
+
+async function renderTwoColumnLayout(
+  helpers: PDFHelpers,
+  products: IProduct[],
+  startY: number,
+  availableHeight: number,
+) {
+  const { margin, pageWidth } = helpers
+  const gap = 8
+  const availableWidth = pageWidth - 2 * margin
+  const cardWidth = (availableWidth - gap) / 2
+  const cardHeight = (availableHeight - gap) / 2
+
+  const positions = [
+    { x: margin, y: startY },
+    { x: margin + cardWidth + gap, y: startY },
+    { x: margin, y: startY + cardHeight + gap },
+    { x: margin + cardWidth + gap, y: startY + cardHeight + gap },
+  ]
+
+  for (let i = 0; i < Math.min(4, products.length); i++) {
+    const pos = positions[i]
+    await addProductCard(helpers, products[i], pos.x, pos.y, cardWidth, cardHeight, i)
+  }
+}
+
+async function renderThreeColumnLayout(
+  helpers: PDFHelpers,
+  products: IProduct[],
+  startY: number,
+  availableHeight: number,
+) {
+  const { margin, pageWidth } = helpers
+  const gap = 6
+  const availableWidth = pageWidth - 2 * margin
+  const cardWidth = (availableWidth - gap * 2) / 3
+  const cardHeight = (availableHeight - gap) / 2
+
+  const positions = [
+    { x: margin, y: startY },
+    { x: margin + cardWidth + gap, y: startY },
+    { x: margin + (cardWidth + gap) * 2, y: startY },
+    { x: margin, y: startY + cardHeight + gap },
+    { x: margin + cardWidth + gap, y: startY + cardHeight + gap },
+    { x: margin + (cardWidth + gap) * 2, y: startY + cardHeight + gap },
+  ]
+
+  for (let i = 0; i < Math.min(6, products.length); i++) {
+    const pos = positions[i]
+    await addProductCard(helpers, products[i], pos.x, pos.y, cardWidth, cardHeight, i)
+  }
+}
+
+async function renderFeaturedLayout(helpers: PDFHelpers, product: IProduct, startY: number, availableHeight: number) {
+  const { margin, pageWidth } = helpers
+  const availableWidth = pageWidth - 2 * margin
+
+  // Large featured card takes most of the page
+  await addProductCard(helpers, product, margin, startY, availableWidth, availableHeight * 0.85, 0)
+}
+
 async function addProductCard(
   helpers: PDFHelpers,
   product: IProduct,
@@ -51,142 +166,162 @@ async function addProductCard(
   y: number,
   width: number,
   height: number,
-  imageOnLeft: boolean,
+  index: number,
 ) {
   const { doc, colors } = helpers
 
-  // Card background with subtle border
+  // Elegant card with subtle shadow effect
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2])
   doc.setLineWidth(0.3)
   doc.rect(x, y, width, height, "FD")
 
-  const imageSize = height - 4
-  const imageX = imageOnLeft ? x + 2 : x + width - imageSize - 2
-  const imageY = y + 2
+  const padding = 6
+  const imageHeight = height * 0.5
+  const textStartY = y + imageHeight + padding * 1.5
 
-  // Load and display product image
-  await addProductImage(helpers, product, imageX, imageY, imageSize, imageSize)
+  // Product image at top
+  await addProductImage(helpers, product, x + padding, y + padding, width - padding * 2, imageHeight - padding)
 
-  // Content area (opposite side of image)
-  const contentX = imageOnLeft ? imageX + imageSize + 4 : x + 2
-  const contentWidth = width - imageSize - 8
-  let contentY = y + 6
+  let currentY = textStartY
 
-  // Product name (serif, bold)
-  doc.setFontSize(11)
-  doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
+  // Product name - bold and elegant
+  doc.setFontSize(width < 60 ? 9 : 11)
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
   doc.setFont("times", "bold")
-  const nameLines = doc.splitTextToSize(product.name.toUpperCase(), contentWidth)
-  doc.text(nameLines, contentX, contentY)
-  contentY += nameLines.length * 4 + 2
+  const nameLines = doc.splitTextToSize(product.name.toUpperCase(), width - padding * 2)
+  doc.text(nameLines.slice(0, 2), x + padding, currentY)
+  currentY += nameLines.slice(0, 2).length * 4 + 2
 
-  // Subtitle: Tribe name
-  doc.setFontSize(8)
+  // Tribe name - italic
+  doc.setFontSize(width < 60 ? 7 : 8)
   doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
   doc.setFont("times", "italic")
-  doc.text(product.tribe, contentX, contentY)
-  contentY += 4
+  doc.text(product.tribe, x + padding, currentY)
+  currentY += 4
 
-  // Divider line
-  doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2])
-  doc.setLineWidth(0.1)
-  doc.line(contentX, contentY, contentX + contentWidth, contentY)
-  contentY += 3
-
-  // Materials section
-  doc.setFontSize(7)
+  // Materials
+  doc.setFontSize(6)
   doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
   doc.setFont("helvetica", "bold")
-  doc.text("MATERIALS:", contentX, contentY)
-  contentY += 3
+  doc.text("MATERIALS:", x + padding, currentY)
+  currentY += 2.5
 
   doc.setFont("helvetica", "normal")
-  const materialsText = product.materials.slice(0, 3).join(", ").toUpperCase()
-  const materialLines = doc.splitTextToSize(materialsText, contentWidth)
-  doc.text(materialLines, contentX, contentY)
-  contentY += materialLines.length * 2.5 + 2
+  const materialsText = product.materials.join(", ").toUpperCase()
+  const materialLines = doc.splitTextToSize(materialsText, width - padding * 2)
+  doc.text(materialLines.slice(0, 1), x + padding, currentY)
+  currentY += 3.5
 
-  // Notes section (story preview)
+  // Story
   doc.setFont("helvetica", "bold")
-  doc.text("NOTES:", contentX, contentY)
-  contentY += 3
+  doc.text("STORY:", x + padding, currentY)
+  currentY += 2.5
 
   doc.setFont("helvetica", "normal")
-  const storyPreview = product.story.length > 100 ? product.story.substring(0, 100) + "..." : product.story
-  const storyLines = doc.splitTextToSize(storyPreview, contentWidth)
-  doc.text(storyLines.slice(0, 3), contentX, contentY) // Max 3 lines
-  contentY += 3 * 2.5 + 2
+  const storyLines = doc.splitTextToSize(product.story, width - padding * 2)
+  const remainingHeight = y + height - currentY - 12
+  const maxStoryLines = Math.floor(remainingHeight / 2.5)
+  doc.text(storyLines.slice(0, Math.max(2, maxStoryLines)), x + padding, currentY)
+  currentY += Math.max(2, maxStoryLines) * 2.5 + 3
 
-  // Sizes & Retail Price section at bottom
-  const bottomY = y + height - 6
+  // Size and price at bottom
+  doc.setFontSize(5.5)
+  doc.setFont("helvetica", "bold")
+  doc.text("SIZES & RETAIL PRICE", x + padding, currentY)
+  currentY += 2.5
+
+  doc.setFontSize(6)
+  doc.setFont("helvetica", "normal")
   const dimensions = product.dimensions
-
-  doc.setFontSize(7)
-  doc.setFont("helvetica", "bold")
-  doc.text("SIZES & RETAIL PRICE", contentX, bottomY - 6)
-
-  doc.setFontSize(8)
-  doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
-  doc.setFont("helvetica", "normal")
   const sizeText = dimensions
     ? `${dimensions.length}×${dimensions.width}×${dimensions.height} ${dimensions.unit}`
     : "Standard"
-  doc.text(`Size: ${sizeText}`, contentX, bottomY - 2)
+  doc.text(`Size: ${sizeText}`, x + padding, currentY)
+  currentY += 3
 
-  doc.setFontSize(9)
+  doc.setFontSize(8)
   doc.setFont("helvetica", "bold")
-  doc.text(`${product.price.currency} ${product.price.amount.toLocaleString()}`, contentX, bottomY + 2)
-
-  // Stock indicator
-  if (product.stockQuantity > 0) {
-    doc.setFontSize(6)
-    doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
-    doc.setFont("helvetica", "normal")
-    const stockX = imageOnLeft ? x + width - 2 : imageX - 2
-    doc.text(`In Stock: ${product.stockQuantity}`, stockX, bottomY + 2, { align: "right" })
-  }
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
+  doc.text(`${product.price.currency} ${product.price.amount.toLocaleString()}`, x + padding, currentY)
 }
 
-// Helper: Load and display product image
+// Helper: Load and display product image with preserved aspect ratio
 async function addProductImage(
   helpers: PDFHelpers,
   product: IProduct,
   x: number,
   y: number,
-  width: number,
-  height: number,
+  maxWidth: number,
+  maxHeight: number,
 ) {
   const { doc, colors } = helpers
 
   try {
-    if (product.imageUrls && product.imageUrls.length > 0) {
-      const imageUrl = product.imageUrls[0]
-      const response = await fetch(imageUrl)
-      const blob = await response.blob()
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.readAsDataURL(blob)
+    if (product.images && product.images.length > 0) {
+      let imageUrl = product.images[0]
+
+      if (imageUrl.includes("cloudinary.com")) {
+        const urlParts = imageUrl.split("/upload/")
+        if (urlParts.length === 2) {
+          imageUrl = `${urlParts[0]}/upload/f_auto,q_auto/${urlParts[1]}`
+        }
+      }
+
+      const response = await fetch(imageUrl, {
+        method: "GET",
+        headers: {
+          Accept: "image/jpeg,image/png,image/webp,image/*",
+        },
       })
 
-      const format = imageUrl.toLowerCase().includes(".png") ? "PNG" : "JPEG"
-      doc.addImage(base64, format, x, y, width, height, undefined, "FAST")
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`)
+      }
+
+      const blob = await response.blob()
+      const arrayBuffer = await blob.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      const base64 = `data:${blob.type};base64,${buffer.toString("base64")}`
+
+      let format = "JPEG"
+      const mimeType = blob.type.toLowerCase()
+      if (mimeType.includes("png")) {
+        format = "PNG"
+      } else if (mimeType.includes("webp")) {
+        format = "WEBP"
+      }
+
+      const imgProps = doc.getImageProperties(base64)
+      const imgAspectRatio = imgProps.width / imgProps.height
+
+      let finalWidth = maxWidth
+      let finalHeight = maxHeight
+
+      if (imgAspectRatio > maxWidth / maxHeight) {
+        finalHeight = maxWidth / imgAspectRatio
+      } else {
+        finalWidth = maxHeight * imgAspectRatio
+      }
+
+      const offsetX = (maxWidth - finalWidth) / 2
+      const offsetY = (maxHeight - finalHeight) / 2
+
+      doc.addImage(base64, format, x + offsetX, y + offsetY, finalWidth, finalHeight, undefined, "MEDIUM")
     } else {
       throw new Error("No image available")
     }
   } catch (error) {
-    // Placeholder for missing images
+    // Elegant placeholder
     doc.setFillColor(245, 242, 238)
     doc.setDrawColor(colors.muted[0], colors.muted[1], colors.muted[2])
     doc.setLineWidth(0.2)
-    doc.rect(x, y, width, height, "FD")
+    doc.rect(x, y, maxWidth, maxHeight, "FD")
 
     doc.setFontSize(7)
     doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
-    doc.setFont("helvetica", "normal")
-    doc.text("Image", x + width / 2, y + height / 2 - 2, { align: "center" })
-    doc.text("Unavailable", x + width / 2, y + height / 2 + 2, { align: "center" })
+    doc.setFont("times", "italic")
+    doc.text("Image Unavailable", x + maxWidth / 2, y + maxHeight / 2, { align: "center" })
   }
 }
 
@@ -202,12 +337,12 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
       })
 
       const colors = {
-        primary: [74, 52, 40], // Rich brown for headings
-        secondary: [139, 90, 60], // Clay red for accents
-        accent: [196, 165, 116], // Warm amber for borders
-        text: [60, 60, 60], // Dark gray for body text
-        muted: [140, 123, 107], // Muted brown for secondary text
-        background: [252, 250, 247], // Warm off-white
+        primary: [74, 52, 40],
+        secondary: [139, 90, 60],
+        accent: [196, 165, 116],
+        text: [60, 60, 60],
+        muted: [140, 123, 107],
+        background: [252, 250, 247],
       }
 
       const pageWidth = doc.internal.pageSize.getWidth()
@@ -225,35 +360,35 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
       doc.setFillColor(colors.background[0], colors.background[1], colors.background[2])
       doc.rect(0, 0, pageWidth, pageHeight, "F")
 
-      doc.setFontSize(36)
+      doc.setFontSize(38)
       doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
       doc.setFont("times", "bold")
-      doc.text("THAI TRIBAL CRAFTS", pageWidth / 2, 100, { align: "center" })
+      doc.text("THAI TRIBAL", pageWidth / 2, 95, { align: "center" })
+      doc.text("CRAFTS", pageWidth / 2, 110, { align: "center" })
 
-      doc.setFontSize(14)
+      doc.setFontSize(13)
       doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
       doc.setFont("times", "italic")
-      doc.text("Handcrafted Heritage Collection", pageWidth / 2, 115, { align: "center" })
+      doc.text("Handcrafted Heritage Collection", pageWidth / 2, 125, { align: "center" })
 
-      // Decorative lines
       doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2])
       doc.setLineWidth(0.5)
-      doc.line(50, 125, pageWidth - 50, 125)
-      doc.line(50, 127, pageWidth - 50, 127)
+      doc.line(45, 135, pageWidth - 45, 135)
+      doc.line(45, 137, pageWidth - 45, 137)
 
-      doc.setFontSize(9)
+      doc.setFontSize(8)
       doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
       doc.setFont("helvetica", "normal")
       const dateStr = new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
       })
-      doc.text(dateStr, pageWidth / 2, 140, { align: "center" })
+      doc.text(dateStr, pageWidth / 2, 150, { align: "center" })
 
-      const productsPerPage = 2
       let pageNumber = 1
+      let currentIndex = 0
 
-      for (let i = 0; i < products.length; i += productsPerPage) {
+      while (currentIndex < products.length) {
         doc.addPage()
         doc.setFillColor(colors.background[0], colors.background[1], colors.background[2])
         doc.rect(0, 0, pageWidth, pageHeight, "F")
@@ -262,41 +397,49 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
         pageNumber++
 
         const startY = 20
-        const cardHeight = (pageHeight - startY - margin - 10) / productsPerPage
-        const cardWidth = pageWidth - 2 * margin
+        const availableHeight = pageHeight - startY - margin
 
-        // Add up to 2 products on this page with alternating layouts
-        for (let j = 0; j < productsPerPage && i + j < products.length; j++) {
-          const product = products[i + j]
-          const cardY = startY + j * cardHeight
-          const imageOnLeft = j % 2 === 0 // Alternate: first product image on left, second on right
+        const remainingProducts = products.slice(currentIndex)
+        const layout = determinePageLayout(products, currentIndex)
 
-          await addProductCard(helpers, product, margin, cardY, cardWidth, cardHeight - 5, imageOnLeft)
+        const productsForPage = remainingProducts.slice(0, layout.productsOnPage)
+
+        // Render based on layout type
+        if (layout.layoutType === "featured") {
+          await renderFeaturedLayout(helpers, productsForPage[0], startY, availableHeight)
+        } else if (layout.layoutType === "two-column") {
+          await renderTwoColumnLayout(helpers, productsForPage, startY, availableHeight)
+        } else if (layout.layoutType === "three-column") {
+          await renderThreeColumnLayout(helpers, productsForPage, startY, availableHeight)
         }
+
+        currentIndex += layout.productsOnPage
       }
 
       doc.addPage()
       doc.setFillColor(colors.background[0], colors.background[1], colors.background[2])
       doc.rect(0, 0, pageWidth, pageHeight, "F")
 
-      doc.setFontSize(28)
+      doc.setFontSize(32)
       doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
       doc.setFont("times", "bold")
       doc.text("THANK YOU", pageWidth / 2, pageHeight / 2 - 20, { align: "center" })
 
       doc.setFontSize(10)
       doc.setTextColor(colors.text[0], colors.text[1], colors.text[2])
-      doc.setFont("times", "normal")
-      const thankYouText = "For supporting traditional craftsmanship and cultural preservation"
-      doc.text(thankYouText, pageWidth / 2, pageHeight / 2, { align: "center" })
+      doc.setFont("times", "italic")
+      doc.text("For supporting traditional craftsmanship", pageWidth / 2, pageHeight / 2, { align: "center" })
+      doc.text("and cultural preservation", pageWidth / 2, pageHeight / 2 + 6, { align: "center" })
 
-      doc.setFontSize(8)
+      doc.setFontSize(7)
       doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
-      doc.text("Thai Tribal Craft Catalogue", pageWidth / 2, pageHeight / 2 + 15, { align: "center" })
+      doc.setFont("helvetica", "normal")
+      doc.text("Thai Tribal Craft Catalogue", pageWidth / 2, pageHeight / 2 + 20, { align: "center" })
 
       const pdfOutput = doc.output("arraybuffer")
       resolve(Buffer.from(pdfOutput))
     } catch (error) {
+      console.log("[v0] PDF generation error:", error)
       reject(error)
     }
   })
