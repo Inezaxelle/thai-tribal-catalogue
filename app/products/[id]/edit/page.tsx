@@ -1,4 +1,4 @@
-"use client"
+
 
 import { ProductForm } from "@/components/product-form"
 import { notFound } from "next/navigation"
@@ -9,8 +9,8 @@ import { connectDB } from "@/lib/mongodb"
 import Product from "@/models/Product"
 import { updateProduct } from "@/app/actions/product-actions"
 
-export default async function EditProductPage({ params }: { params: { id: string } }) {
-  const { id } = params
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
 
   await connectDB()
 
