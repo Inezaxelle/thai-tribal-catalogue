@@ -31,7 +31,7 @@ function addPageHeader(helpers: PDFHelpers, title: string, pageNumber: number) {
   doc.setFontSize(7)
   doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
   doc.setFont("times", "normal")
-  doc.text("Thai Tribal Crafts | 2025", margin, 10)
+  doc.text("Thai Tribal Crafts Fair Trade | 2025", margin, 10)
 
   doc.setFontSize(11)
   doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
@@ -369,7 +369,7 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
       })
 
       const colors = {
-        primary: [74, 52, 40],
+        primary: [212, 1, 0], // #D40100 - vibrant red
         secondary: [139, 90, 60],
         accent: [196, 165, 116],
         text: [60, 60, 60],
@@ -389,33 +389,112 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
         margin,
       }
 
-      doc.setFillColor(colors.background[0], colors.background[1], colors.background[2])
+      // Background - cream/beige
+      doc.setFillColor(252, 250, 247)
       doc.rect(0, 0, pageWidth, pageHeight, "F")
 
-      doc.setFontSize(38)
-      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2])
-      doc.setFont("times", "bold")
-      doc.text("THAI TRIBAL", pageWidth / 2, 95, { align: "center" })
-      doc.text("CRAFTS", pageWidth / 2, 110, { align: "center" })
+      // Add product images as decorative background elements
+      const coverImages = [
+        {
+          url: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/02-52-029-52-5-fQIyrx1QInsKR0CtwmmjVh3lOXTiA8.jpg",
+          x: 5,
+          y: 5,
+          label: "woven pouch",
+        },
+        {
+          url: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/10-72-003-10-fairtrade-hammock-dark-blue-kxfKkh2pW7nku78qCyulu49pXiyF0b.jpg",
+          x: pageWidth - 55,
+          y: 5,
+          label: "blue hammock",
+        },
+        {
+          url: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/10-72-027-10-fair-trade-hammock-Sundown-aaryJIjq3SswGJjs1FtuEWyIGhBCwM.jpg",
+          x: 5,
+          y: pageHeight - 55,
+          label: "sunset hammock",
+        },
+        {
+          url: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/fairtrade-toy-elephant-red-3-1080-LXoBZ5cn87LUtGDKXfpRYViVs4DXRy.jpg",
+          x: pageWidth - 55,
+          y: pageHeight - 55,
+          label: "red elephant",
+        },
+      ]
 
-      doc.setFontSize(13)
-      doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2])
-      doc.setFont("times", "italic")
-      doc.text("Handcrafted Heritage Collection", pageWidth / 2, 125, { align: "center" })
+      for (const img of coverImages) {
+        try {
+          console.log(`[v0] Loading cover image: ${img.label} from ${img.url}`)
+          await loadAndDisplayImage(helpers, img.url, img.x, img.y, 50, 50)
+          console.log(`[v0] Successfully loaded cover image: ${img.label}`)
+        } catch (error) {
+          console.log(`[v0] Failed to load cover image ${img.label}:`, error)
+          // Draw a subtle placeholder instead
+          doc.setFillColor(240, 235, 230)
+          doc.setDrawColor(200, 190, 180)
+          doc.setLineWidth(0.3)
+          doc.rect(img.x, img.y, 50, 50, "FD")
+        }
+      }
 
-      doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2])
+      // Add subtle overlay to soften background images
+      doc.setGState(new doc.GState({ opacity: 0.3 }))
+      doc.setFillColor(252, 250, 247)
+      doc.rect(0, 0, pageWidth, pageHeight, "F")
+      doc.setGState(new doc.GState({ opacity: 1 }))
+
+      // Decorative red border frame
+      doc.setDrawColor(212, 1, 0)
+      doc.setLineWidth(2)
+      doc.rect(20, 30, pageWidth - 40, pageHeight - 60, "S")
+
       doc.setLineWidth(0.5)
-      doc.line(45, 135, pageWidth - 45, 135)
-      doc.line(45, 137, pageWidth - 45, 137)
+      doc.rect(22, 32, pageWidth - 44, pageHeight - 64, "S")
 
-      doc.setFontSize(8)
-      doc.setTextColor(colors.muted[0], colors.muted[1], colors.muted[2])
+      // Main title
+      doc.setFontSize(42)
+      doc.setTextColor(212, 1, 0)
+      doc.setFont("times", "bold")
+      doc.text("THAI TRIBAL", pageWidth / 2, 90, { align: "center" })
+      doc.text("CRAFTS", pageWidth / 2, 108, { align: "center" })
+
+      // Fair Trade badge
+      doc.setFontSize(16)
+      doc.setTextColor(139, 90, 60)
+      doc.setFont("times", "bolditalic")
+      doc.text("FAIR TRADE", pageWidth / 2, 122, { align: "center" })
+
+      // Decorative line
+      doc.setDrawColor(196, 165, 116)
+      doc.setLineWidth(0.8)
+      doc.line(50, 130, pageWidth - 50, 130)
+
+      // Small decorative elements
+      doc.setFillColor(212, 1, 0)
+      doc.circle(50, 130, 1.5, "F")
+      doc.circle(pageWidth - 50, 130, 1.5, "F")
+
+      // Subtitle
+      doc.setFontSize(12)
+      doc.setTextColor(60, 60, 60)
+      doc.setFont("times", "italic")
+      doc.text("Handcrafted Heritage Collection", pageWidth / 2, 142, { align: "center" })
+
+      // Date
+      doc.setFontSize(9)
+      doc.setTextColor(140, 123, 107)
       doc.setFont("helvetica", "normal")
       const dateStr = new Date().toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
       })
-      doc.text(dateStr, pageWidth / 2, 150, { align: "center" })
+      doc.text(dateStr, pageWidth / 2, 155, { align: "center" })
+
+      // Tagline at bottom
+      doc.setFontSize(8)
+      doc.setTextColor(139, 90, 60)
+      doc.setFont("times", "italic")
+      doc.text("Preserving Traditional Craftsmanship", pageWidth / 2, pageHeight - 45, { align: "center" })
+      doc.text("Supporting Hill Tribe Communities", pageWidth / 2, pageHeight - 40, { align: "center" })
 
       let pageNumber = 1
       let currentIndex = 0
