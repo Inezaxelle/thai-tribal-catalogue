@@ -423,11 +423,11 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
 
       for (const img of coverImages) {
         try {
-          console.log(`[v0] Loading cover image: ${img.label} from ${img.url}`)
+          console.log(`Loading cover image: ${img.label} from ${img.url}`)
           await loadAndDisplayImage(helpers, img.url, img.x, img.y, 50, 50)
-          console.log(`[v0] Successfully loaded cover image: ${img.label}`)
+          console.log(`Successfully loaded cover image: ${img.label}`)
         } catch (error) {
-          console.log(`[v0] Failed to load cover image ${img.label}:`, error)
+          console.log(`Failed to load cover image ${img.label}:`, error)
           // Draw a subtle placeholder instead
           doc.setFillColor(240, 235, 230)
           doc.setDrawColor(200, 190, 180)
@@ -550,7 +550,7 @@ export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer
       const pdfOutput = doc.output("arraybuffer")
       resolve(Buffer.from(pdfOutput))
     } catch (error) {
-      console.log("[v0] PDF generation error:", error)
+      console.log("PDF generation error:", error)
       reject(error)
     }
   })

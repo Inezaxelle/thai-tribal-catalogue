@@ -75,11 +75,11 @@ export function ProductForm({ onSubmit, initialData, isEditing = false }: Produc
   const handleCloudinaryUpload = (url: string) => {
     setImageUrls((prev) => {
       if (prev.length < 5) {
-        console.log("[v0] Adding image to form:", url)
-        console.log("[v0] Current image count:", prev.length)
+        console.log("Adding image to form:", url)
+        console.log("Current image count:", prev.length)
         return [...prev, url]
       }
-      console.log("[v0] Max images reached, not adding:", url)
+      console.log("Max images reached, not adding:", url)
       return prev
     })
   }

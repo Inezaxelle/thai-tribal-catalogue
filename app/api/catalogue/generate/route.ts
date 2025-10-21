@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("[v0] Error generating catalogue:", error)
+    console.error("Error generating catalogue:", error)
     return NextResponse.json({ error: "Failed to generate catalogue" }, { status: 500 })
   }
 }

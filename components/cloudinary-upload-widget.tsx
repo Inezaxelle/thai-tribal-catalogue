@@ -57,13 +57,13 @@ export function CloudinaryUploadWidget({ onUpload, buttonText = "Upload Image" }
           }
 
           if (result.event === "success") {
-            console.log("[v0] Image uploaded successfully:", result.info.secure_url)
+            console.log("Image uploaded successfully:", result.info.secure_url)
             setUploadCount((prev) => prev + 1)
             onUpload(result.info.secure_url)
           }
 
           if (result.event === "queues-end") {
-            console.log("[v0] All uploads complete. Total images uploaded:", uploadCount)
+            console.log("All uploads complete. Total images uploaded:", uploadCount)
           }
 
           if (result.event === "close") {

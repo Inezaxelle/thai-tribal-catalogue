@@ -30,7 +30,7 @@ export default function CataloguePage() {
         setSelectedProducts(new Set(data.map((p: IProduct) => p._id.toString())))
       }
     } catch (error) {
-      console.error("[v0] Error fetching products:", error)
+      console.error("Error fetching products:", error)
     } finally {
       setLoading(false)
     }
@@ -84,7 +84,7 @@ export default function CataloguePage() {
         alert("Failed to generate PDF catalogue")
       }
     } catch (error) {
-      console.error("[v0] Error generating PDF:", error)
+      console.error("Error generating PDF:", error)
       alert("Failed to generate PDF catalogue")
     } finally {
       setGenerating(false)

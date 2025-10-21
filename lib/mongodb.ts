@@ -34,7 +34,7 @@ async function connectDB() {
     }
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log("[v0] MongoDB connected successfully")
+      console.log("MongoDB connected successfully")
       return mongoose
     })
   }
@@ -43,7 +43,7 @@ async function connectDB() {
     cached.conn = await cached.promise
   } catch (e) {
     cached.promise = null
-    console.error("[v0] MongoDB connection error:", e)
+    console.error("MongoDB connection error:", e)
     throw e
   }
 

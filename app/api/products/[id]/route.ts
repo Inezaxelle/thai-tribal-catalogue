@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json(product, { status: 200 })
   } catch (error) {
-    console.error("[v0] Error fetching product:", error)
+    console.error("Error fetching product:", error)
     return NextResponse.json({ error: "Failed to fetch product" }, { status: 500 })
   }
 }
@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     return NextResponse.json(product, { status: 200 })
   } catch (error: any) {
-    console.error("[v0] Error updating product:", error)
+    console.error("Error updating product:", error)
     if (error.name === "ValidationError") {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
@@ -77,7 +77,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     return NextResponse.json({ message: "Product deleted successfully" }, { status: 200 })
   } catch (error) {
-    console.error("[v0] Error deleting product:", error)
+    console.error("Error deleting product:", error)
     return NextResponse.json({ error: "Failed to delete product" }, { status: 500 })
   }
 }

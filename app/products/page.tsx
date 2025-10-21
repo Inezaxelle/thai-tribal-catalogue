@@ -35,7 +35,7 @@ export default function ProductsPage() {
         setProducts(data)
       }
     } catch (error) {
-      console.error("[v0] Error fetching products:", error)
+      console.error("Error fetching products:", error)
     } finally {
       setLoading(false)
     }
@@ -78,7 +78,7 @@ export default function ProductsPage() {
         setProducts(products.filter((p) => p._id.toString() !== id))
       }
     } catch (error) {
-      console.error("[v0] Error deleting product:", error)
+      console.error("Error deleting product:", error)
     }
   }
 
