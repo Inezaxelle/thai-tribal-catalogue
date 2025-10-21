@@ -29,11 +29,20 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
               <Star className="h-4 w-4 fill-current" />
             </div>
           )}
+          {product.images && product.images.length > 1 && (
+            <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded-md text-xs">
+              {product.images.length} photos
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-4 space-y-3">
         <div className="space-y-1">
-          <h3 className="font-serif font-semibold text-lg leading-tight line-clamp-2">{product.name}</h3>
+          <Link href={`/products/${product._id}`}>
+            <h3 className="font-serif font-semibold text-lg leading-tight line-clamp-2 hover:text-primary transition-colors">
+              {product.name}
+            </h3>
+          </Link>
           <div className="flex gap-2 flex-wrap">
             <Badge variant="secondary" className="text-xs">
               {product.tribe}
@@ -56,6 +65,9 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex gap-2">
+        <Button variant="default" size="sm" className="flex-1" asChild>
+          <Link href={`/products/${product._id}`}>View</Link>
+        </Button>
         <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
           <Link href={`/products/${product._id}/edit`}>
             <Edit className="h-4 w-4 mr-2" />
@@ -65,12 +77,12 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
         {onDelete && (
           <Button
             variant="outline"
+            size="icon"
             size="sm"
-            className="flex-1 text-destructive hover:bg-destructive hover:text-destructive-foreground bg-transparent"
+            className="text-destructive hover:bg-destructive hover:text-destructive-foreground bg-transparent"
             onClick={() => onDelete(product._id.toString())}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
+            <Trash2 className="h-4 w-4" />
           </Button>
         )}
       </CardFooter>

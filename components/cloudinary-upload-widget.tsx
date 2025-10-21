@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload } from "lucide-react"
 
@@ -17,6 +17,7 @@ declare global {
 
 export function CloudinaryUploadWidget({ onUpload, buttonText = "Upload Image" }: CloudinaryUploadWidgetProps) {
   const widgetRef = useRef<any>(null)
+  const [uploadCount, setUploadCount] = useState(0)
 
   useEffect(() => {
     // Load Cloudinary widget script
@@ -39,14 +40,15 @@ export function CloudinaryUploadWidget({ onUpload, buttonText = "Upload Image" }
       widgetRef.current = window.cloudinary.createUploadWidget(
         {
           cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-          uploadPreset: "ml_default", // You'll need to create this in Cloudinary dashboard
+          uploadPreset: "ml_default",
           sources: ["local", "url", "camera"],
-          multiple: false,
-          maxFiles: 1,
+          multiple: true,
+          maxFiles: 5,
           clientAllowedFormats: ["jpg", "jpeg", "png", "webp"],
           maxFileSize: 5000000, // 5MB
           folder: "thai-tribal-crafts",
           resourceType: "image",
+          showCompletedButton: true,
         },
         (error: any, result: any) => {
           if (error) {
@@ -56,7 +58,16 @@ export function CloudinaryUploadWidget({ onUpload, buttonText = "Upload Image" }
 
           if (result.event === "success") {
             console.log("[v0] Image uploaded successfully:", result.info.secure_url)
+            setUploadCount((prev) => prev + 1)
             onUpload(result.info.secure_url)
+          }
+
+          if (result.event === "queues-end") {
+            console.log("[v0] All uploads complete. Total images uploaded:", uploadCount)
+          }
+
+          if (result.event === "close") {
+            setUploadCount(0)
           }
         },
       )
@@ -69,6 +80,7 @@ export function CloudinaryUploadWidget({ onUpload, buttonText = "Upload Image" }
     <Button type="button" variant="outline" onClick={openWidget} className="w-full bg-transparent">
       <Upload className="mr-2 h-4 w-4" />
       {buttonText}
+      {uploadCount > 0 && <span className="ml-2 text-xs">({uploadCount} uploaded)</span>}
     </Button>
   )
 }

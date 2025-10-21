@@ -5,14 +5,16 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import connectDB from "@/lib/mongodb"
+import { connectDB } from "@/lib/mongodb"
 import Product from "@/models/Product"
 import { updateProduct } from "@/app/actions/product-actions"
 
 export default async function EditProductPage({ params }: { params: { id: string } }) {
+  const { id } = params
+
   await connectDB()
 
-  const product = await Product.findById(params.id).lean()
+  const product = await Product.findById(id).lean()
 
   if (!product) {
     notFound()
@@ -32,7 +34,7 @@ export default async function EditProductPage({ params }: { params: { id: string
     featured: product.featured,
   }
 
-  const handleSubmit = updateProduct.bind(null, params.id)
+  const handleSubmit = updateProduct.bind(null, id)
 
   return (
     <div className="min-h-screen bg-background">

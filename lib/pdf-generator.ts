@@ -259,55 +259,28 @@ async function addProductImage(
 
   try {
     if (product.images && product.images.length > 0) {
-      let imageUrl = product.images[0]
+      // If multiple images, show main image + thumbnails
+      if (product.images.length > 1) {
+        const mainImageHeight = maxHeight * 0.75
+        const thumbnailHeight = maxHeight * 0.2
+        const thumbnailGap = 2
 
-      if (imageUrl.includes("cloudinary.com")) {
-        const urlParts = imageUrl.split("/upload/")
-        if (urlParts.length === 2) {
-          imageUrl = `${urlParts[0]}/upload/f_auto,q_auto/${urlParts[1]}`
+        // Main image (first image)
+        await loadAndDisplayImage(helpers, product.images[0], x, y, maxWidth, mainImageHeight)
+
+        // Thumbnails (remaining images, max 3)
+        const thumbnailsToShow = Math.min(3, product.images.length - 1)
+        const thumbnailWidth = (maxWidth - thumbnailGap * (thumbnailsToShow - 1)) / thumbnailsToShow
+
+        for (let i = 0; i < thumbnailsToShow; i++) {
+          const thumbX = x + i * (thumbnailWidth + thumbnailGap)
+          const thumbY = y + mainImageHeight + thumbnailGap * 2
+          await loadAndDisplayImage(helpers, product.images[i + 1], thumbX, thumbY, thumbnailWidth, thumbnailHeight)
         }
-      }
-
-      const response = await fetch(imageUrl, {
-        method: "GET",
-        headers: {
-          Accept: "image/jpeg,image/png,image/webp,image/*",
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`)
-      }
-
-      const blob = await response.blob()
-      const arrayBuffer = await blob.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
-      const base64 = `data:${blob.type};base64,${buffer.toString("base64")}`
-
-      let format = "JPEG"
-      const mimeType = blob.type.toLowerCase()
-      if (mimeType.includes("png")) {
-        format = "PNG"
-      } else if (mimeType.includes("webp")) {
-        format = "WEBP"
-      }
-
-      const imgProps = doc.getImageProperties(base64)
-      const imgAspectRatio = imgProps.width / imgProps.height
-
-      let finalWidth = maxWidth
-      let finalHeight = maxHeight
-
-      if (imgAspectRatio > maxWidth / maxHeight) {
-        finalHeight = maxWidth / imgAspectRatio
       } else {
-        finalWidth = maxHeight * imgAspectRatio
+        // Single image - use full space
+        await loadAndDisplayImage(helpers, product.images[0], x, y, maxWidth, maxHeight)
       }
-
-      const offsetX = (maxWidth - finalWidth) / 2
-      const offsetY = (maxHeight - finalHeight) / 2
-
-      doc.addImage(base64, format, x + offsetX, y + offsetY, finalWidth, finalHeight, undefined, "MEDIUM")
     } else {
       throw new Error("No image available")
     }
@@ -323,6 +296,65 @@ async function addProductImage(
     doc.setFont("times", "italic")
     doc.text("Image Unavailable", x + maxWidth / 2, y + maxHeight / 2, { align: "center" })
   }
+}
+
+async function loadAndDisplayImage(
+  helpers: PDFHelpers,
+  imageUrl: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  maxHeight: number,
+) {
+  const { doc } = helpers
+
+  if (imageUrl.includes("cloudinary.com")) {
+    const urlParts = imageUrl.split("/upload/")
+    if (urlParts.length === 2) {
+      imageUrl = `${urlParts[0]}/upload/f_auto,q_auto/${urlParts[1]}`
+    }
+  }
+
+  const response = await fetch(imageUrl, {
+    method: "GET",
+    headers: {
+      Accept: "image/jpeg,image/png,image/webp,image/*",
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const arrayBuffer = await blob.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+  const base64 = `data:${blob.type};base64,${buffer.toString("base64")}`
+
+  let format = "JPEG"
+  const mimeType = blob.type.toLowerCase()
+  if (mimeType.includes("png")) {
+    format = "PNG"
+  } else if (mimeType.includes("webp")) {
+    format = "WEBP"
+  }
+
+  const imgProps = doc.getImageProperties(base64)
+  const imgAspectRatio = imgProps.width / imgProps.height
+
+  let finalWidth = maxWidth
+  let finalHeight = maxHeight
+
+  if (imgAspectRatio > maxWidth / maxHeight) {
+    finalHeight = maxWidth / imgAspectRatio
+  } else {
+    finalWidth = maxHeight * imgAspectRatio
+  }
+
+  const offsetX = (maxWidth - finalWidth) / 2
+  const offsetY = (maxHeight - finalHeight) / 2
+
+  doc.addImage(base64, format, x + offsetX, y + offsetY, finalWidth, finalHeight, undefined, "MEDIUM")
 }
 
 export async function generateCataloguePDF(products: IProduct[]): Promise<Buffer> {
